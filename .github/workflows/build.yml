@@ -10,9 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Fix Manifest
+      - name: Generate Clean Manifest
         run: |
-          printf '<?xml version="1.0" encoding="utf-8"?>\n<manifest xmlns:android="http://android.com">\n<application android:label="Meimusic Alpha" android:theme="@style/Theme.AppCompat.NoActionBar">\n<activity android:name=".MainActivity" android:exported="true">\n<intent-filter>\n<action android:name="android.intent.action.MAIN" />\n<category android:name="android.intent.category.LAUNCHER" />\n</intent-filter>\n</activity>\n</application>\n</manifest>\n' > app/src/main/AndroidManifest.xml
+          P="and""roid:"
+          printf '<?xml version="1.0" encoding="utf-8"?>\n<manifest xmlns:android="http://android.com">\n<application %slabel="Meimusic Alpha" %stheme="@style/Theme.AppCompat.NoActionBar">\n<activity %sname=".MainActivity" %sexported="true">\n<intent-filter>\n<action %sname="android.intent.action.MAIN" />\n<category %sname="android.intent.category.LAUNCHER" />\n</intent-filter>\n</activity>\n</application>\n</manifest>\n' "$P" "$P" "$P" "$P" "$P" "$P" > app/src/main/AndroidManifest.xml
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
