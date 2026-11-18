@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -19,46 +20,130 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import java.io.File
 
 class MainActivity : AppCompatActivity() {
+
+    private var mediaPlayer: MediaPlayer? = null
+    private var trackList: List<File> = emptyList()
+    private var currentTrackIndex = 0
+    private var isPlaying = false
+
+    private lateinit var tvNowPlaying: TextView
+    private lateinit var btnPlayPause: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         val btnOpenSettings = findViewById<Button>(R.id.btnOpenSettings)
-        val btnMeiMeiAction = findViewById<Button>(R.id.btnMeiMeiAction)
         val etTrackUrl = findViewById<EditText>(R.id.etTrackUrl)
         val btnDownloadTrack = findViewById<Button>(R.id.btnDownloadTrack)
 
-        // Переход в настройки и управление MEI ID
+        btnPlayPause = findViewById(R.id.btnMeiMeiAction)
+        tvNowPlaying = findViewById(R.id.tvCurrentThemeLabel)
+
+        // Открытие экрана настроек, тем и MEI ID
         btnOpenSettings.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
 
-        // Кнопка скачивания трека по ссылке
+        // Скачивание MP3 по прямой ссылке
         btnDownloadTrack.setOnClickListener {
             val url = etTrackUrl.text.toString().trim()
             if (url.isEmpty() || (!url.startsWith("http://") && !url.startsWith("https://"))) {
-                Toast.makeText(this, "Введите корректную ссылку (http/https)", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Введите ссылку (http/https)", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
-            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P &&
-                ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
-            ) {
-                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), 101)
-                Toast.makeText(this, "Разрешите доступ к памяти и нажмите Скачать снова", Toast.LENGTH_LONG).show()
-            } else {
+            if (checkStoragePermission()) {
                 startMusicDownload(url)
                 etTrackUrl.text.clear()
             }
         }
 
-        // Главная кнопка с Мей Мей
-        btnMeiMeiAction.setOnClickListener {
-            Toast.makeText(this, "Мей Мей готова к воспроизведению музыки!", Toast.LENGTH_SHORT).show()
+        // Кнопка Пауза / Воспроизведение (а долгое нажатие переключает на следующий трек)
+        btnPlayPause.setOnClickListener {
+            if (isPlaying) {
+                pauseTrack()
+            } else if (mediaPlayer != null) {
+                resumeTrack()
+            } else {
+                loadAndPlayTracks(0)
+            }
         }
+
+        btnPlayPause.setOnLongClickListener {
+            if (trackList.isNotEmpty()) {
+                val nextIndex = (currentTrackIndex + 1) % trackList.size
+                loadAndPlayTracks(nextIndex)
+            }
+            true
+        }
+    }
+
+    private fun checkStoragePermission(): Boolean {
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE),
+                101
+            )
+            Toast.makeText(this, "Разрешите доступ к памяти и нажмите еще раз", Toast.LENGTH_LONG).show()
+            return false
+        }
+        return true
+    }
+
+    private fun loadAndPlayTracks(index: Int) {
+        if (!checkStoragePermission()) return
+
+        val musicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
+        val files = musicDir?.listFiles { file -> file.extension.equals("mp3", ignoreCase = true) }
+            ?.sortedByDescending { it.lastModified() }
+            ?: emptyList()
+
+        if (files.isEmpty()) {
+            Toast.makeText(this, "В папке Music нет MP3. Скачайте трек по ссылке выше!", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        trackList = files
+        currentTrackIndex = index.coerceIn(0, trackList.size - 1)
+        val track = trackList[currentTrackIndex]
+
+        try {
+            mediaPlayer?.release()
+            mediaPlayer = MediaPlayer().apply {
+                setDataSource(track.absolutePath)
+                prepare()
+                start()
+                setOnCompletionListener {
+                    // Автоматически включаем следующий трек по кругу
+                    val next = (currentTrackIndex + 1) % trackList.size
+                    loadAndPlayTracks(next)
+                }
+            }
+            isPlaying = true
+            btnPlayPause.text = "⏸ Пауза (Удерж. — След.)"
+            tvNowPlaying.text = "Играет (${currentTrackIndex + 1}/${trackList.size}): ${track.nameWithoutExtension}"
+        } catch (e: Exception) {
+            Toast.makeText(this, "Ошибка чтения файла: ${track.name}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun pauseTrack() {
+        mediaPlayer?.pause()
+        isPlaying = false
+        btnPlayPause.text = "▶ Продолжить"
+    }
+
+    private fun resumeTrack() {
+        mediaPlayer?.start()
+        isPlaying = true
+        btnPlayPause.text = "⏸ Пауза (Удерж. — След.)"
     }
 
     private fun startMusicDownload(url: String) {
@@ -81,21 +166,28 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        updateMainScreen()
+        updateUIAndTheme()
     }
 
-    private fun updateMainScreen() {
+    override fun onDestroy() {
+        super.onDestroy()
+        mediaPlayer?.release()
+        mediaPlayer = null
+    }
+
+    private fun updateUIAndTheme() {
         val rootView = findViewById<View>(R.id.mainRoot)
         val prefs = getSharedPreferences("mei_id_prefs", Context.MODE_PRIVATE)
         val isLoggedIn = prefs.getBoolean("is_logged_in", false)
         val selectedTheme = prefs.getString("selected_theme", "Мей Классик") ?: "Мей Классик"
 
-        // Применяем цвет выбранной темы (включая Жидкое стекло)
-        applySafeTheme(rootView, selectedTheme)
+        applyThemeColor(rootView, selectedTheme)
 
-        findViewById<TextView>(R.id.tvCurrentThemeLabel).text = "Тема: $selectedTheme"
+        if (!isPlaying && mediaPlayer == null) {
+            tvNowPlaying.text = "Тема: $selectedTheme"
+        }
+
         val tvHeader = findViewById<TextView>(R.id.tvMainHeader)
-
         if (isLoggedIn) {
             val nick = prefs.getString("nickname", "Пользователь")
             val isCreator = prefs.getBoolean("is_creator", false)
@@ -116,7 +208,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun applySafeTheme(rootView: View, themeName: String) {
+    private fun applyThemeColor(rootView: View, themeName: String) {
         if (themeName == "Жидкое стекло") {
             val glassGradient = GradientDrawable(
                 GradientDrawable.Orientation.TL_BR,
