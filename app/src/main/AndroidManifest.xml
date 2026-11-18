@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://android.com">
 
-    <!-- Разрешения для доступа к музыке на старых и новых Android -->
+    <!-- Разрешения для скачивания и чтения музыки на Android 6-15 -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.INTERNET" />
 
@@ -24,15 +25,7 @@
             </intent-filter>
         </activity>
 
-        <!-- Новые экраны MEI ID, Поддержки и Настроек -->
-        <activity
-            android:name=".LoginActivity"
-            android:exported="false" />
-
-        <activity
-            android:name=".SupportActivity"
-            android:exported="false" />
-
+        <!-- Экран настроек, тем, MEI ID и ключей -->
         <activity
             android:name=".SettingsActivity"
             android:exported="false" />
