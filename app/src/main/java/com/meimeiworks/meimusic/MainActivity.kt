@@ -34,51 +34,61 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
 
-        val btnOpenSettings = findViewById<Button>(R.id.btnOpenSettings)
-        val etTrackUrl = findViewById<EditText>(R.id.etTrackUrl)
-        val btnDownloadTrack = findViewById<Button>(R.id.btnDownloadTrack)
+        // Защита от молчаливого вылета при запуске
+        try {
+            setContentView(R.layout.activity_main)
 
-        btnPlayPause = findViewById(R.id.btnMeiMeiAction)
-        tvNowPlaying = findViewById(R.id.tvCurrentThemeLabel)
+            val btnOpenSettings = findViewById<Button>(R.id.btnOpenSettings)
+            val etTrackUrl = findViewById<EditText>(R.id.etTrackUrl)
+            val btnDownloadTrack = findViewById<Button>(R.id.btnDownloadTrack)
 
-        // Открытие экрана настроек, тем и MEI ID
-        btnOpenSettings.setOnClickListener {
-            startActivity(Intent(this, SettingsActivity::class.java))
-        }
+            btnPlayPause = findViewById(R.id.btnMeiMeiAction)
+            tvNowPlaying = findViewById(R.id.tvCurrentThemeLabel)
 
-        // Скачивание MP3 по прямой ссылке
-        btnDownloadTrack.setOnClickListener {
-            val url = etTrackUrl.text.toString().trim()
-            if (url.isEmpty() || (!url.startsWith("http://") && !url.startsWith("https://"))) {
-                Toast.makeText(this, "Введите ссылку (http/https)", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
+            // Открытие экрана настроек, тем и MEI ID
+            btnOpenSettings.setOnClickListener {
+                startActivity(Intent(this, SettingsActivity::class.java))
             }
 
-            if (checkStoragePermission()) {
-                startMusicDownload(url)
-                etTrackUrl.text.clear()
-            }
-        }
+            // Скачивание MP3 по прямой ссылке
+            btnDownloadTrack.setOnClickListener {
+                val url = etTrackUrl.text.toString().trim()
+                if (url.isEmpty() || (!url.startsWith("http://") && !url.startsWith("https://"))) {
+                    Toast.makeText(this, "Введите ссылку (http/https)", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
 
-        // Кнопка Пауза / Воспроизведение (а долгое нажатие переключает на следующий трек)
-        btnPlayPause.setOnClickListener {
-            if (isPlaying) {
-                pauseTrack()
-            } else if (mediaPlayer != null) {
-                resumeTrack()
-            } else {
-                loadAndPlayTracks(0)
+                if (checkStoragePermission()) {
+                    startMusicDownload(url)
+                    etTrackUrl.text.clear()
+                }
             }
-        }
 
-        btnPlayPause.setOnLongClickListener {
-            if (trackList.isNotEmpty()) {
-                val nextIndex = (currentTrackIndex + 1) % trackList.size
-                loadAndPlayTracks(nextIndex)
+            // Кнопка Пауза / Воспроизведение (долгое нажатие переключает трек)
+            btnPlayPause.setOnClickListener {
+                if (isPlaying) {
+                    pauseTrack()
+                } else if (mediaPlayer != null) {
+                    resumeTrack()
+                } else {
+                    loadAndPlayTracks(0)
+                }
             }
-            true
+
+            btnPlayPause.setOnLongClickListener {
+                if (trackList.isNotEmpty()) {
+                    val nextIndex = (currentTrackIndex + 1) % trackList.size
+                    loadAndPlayTracks(nextIndex)
+                }
+                true
+            }
+        } catch (e: Exception) {
+            val errorView = TextView(this).apply {
+                text = "Ошибка запуска интерфейса:\n${e.message}"
+                setPadding(40, 40, 40, 40)
+            }
+            setContentView(errorView)
         }
     }
 
@@ -121,7 +131,6 @@ class MainActivity : AppCompatActivity() {
                 prepare()
                 start()
                 setOnCompletionListener {
-                    // Автоматически включаем следующий трек по кругу
                     val next = (currentTrackIndex + 1) % trackList.size
                     loadAndPlayTracks(next)
                 }
@@ -166,7 +175,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        updateUIAndTheme()
+        try {
+            updateUIAndTheme()
+        } catch (e: Exception) {
+            // Игнорируем ошибку обновления UI, если экран еще не загружен
+        }
     }
 
     override fun onDestroy() {
@@ -176,18 +189,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateUIAndTheme() {
-        val rootView = findViewById<View>(R.id.mainRoot)
+        val rootView = findViewById<View>(R.id.mainRoot) ?: return
         val prefs = getSharedPreferences("mei_id_prefs", Context.MODE_PRIVATE)
         val isLoggedIn = prefs.getBoolean("is_logged_in", false)
         val selectedTheme = prefs.getString("selected_theme", "Мей Классик") ?: "Мей Классик"
 
         applyThemeColor(rootView, selectedTheme)
 
-        if (!isPlaying && mediaPlayer == null) {
+        if (!isPlaying && mediaPlayer == null && ::tvNowPlaying.isInitialized) {
             tvNowPlaying.text = "Тема: $selectedTheme"
         }
 
-        val tvHeader = findViewById<TextView>(R.id.tvMainHeader)
+        val tvHeader = findViewById<TextView>(R.id.tvMainHeader) ?: return
         if (isLoggedIn) {
             val nick = prefs.getString("nickname", "Пользователь")
             val isCreator = prefs.getBoolean("is_creator", false)
