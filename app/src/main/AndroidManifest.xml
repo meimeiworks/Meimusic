@@ -1,13 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://android.com">
-    <application
-        android:allowBackup="true"
-        android:label="Meimusic Alpha"
-        android:supportsRtl="true"
-        android:theme="@style/Theme.AppCompat.NoActionBar">
-        <activity
-            android:name=".MainActivity"
-            android:exported="true">
+    <application android:label="Meimusic Alpha" android:theme="@style/Theme.AppCompat.NoActionBar">
+        <activity android:name="com.meimeiworks.meimusic.MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -15,3 +9,4 @@
         </activity>
     </application>
 </manifest>
+
