@@ -1,4 +1,4 @@
-package com.meimeiworks.meimusic
+package com.meimeiworks.meimusicpackage com.meimeiworks.meimusic
 
 import android.Manifest
 import android.content.Context
