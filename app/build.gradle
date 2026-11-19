@@ -4,13 +4,13 @@ plugins {
 }
 
 android {
-    namespace 'com.meimusic.app'
+    namespace 'com.meimeiworks.meimusic'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.meimusic.app"
+        applicationId "com.meimeiworks.meimusic"
         minSdk 28      // Только Android 9.0 и выше (без 6-8)
-        targetSdk 34   // Android 14 (обязательно для RuStore)
+        targetSdk 34   // Android 14 (требование для RuStore)
         versionCode 2
         versionName "1.0"
     }
@@ -36,7 +36,6 @@ android {
 }
 
 dependencies {
-    // Современные базовые библиотеки для Android 9-14
     implementation 'androidx.core:core-ktx:1.13.1'
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'com.google.android.material:material:1.12.0'
